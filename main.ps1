@@ -1,7 +1,24 @@
-$line = "=" * 70
-$zeit = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-$bold = "`e[1m"
-$reset = "`e[0m"
+# ===========================================
+# 1. Global variable // Config init
+# ===========================================
+
+# Config file handling
+$configPath = ".\data\config.json"
+$configSuccess = $false
+
+#The Test-Path checks if the config file exists
+if (Test-Path $configPath) {
+    $config = Get-Content $configPath | ConvertFrom-Json
+    $configSuccess = $true
+} else {
+    Write-Host "Config file not found. Creating a new one..." -ForegroundColor Yellow
+
+    $jsonTemplate = @"
+{
+    "Connections": [],
+    "Menu-Settings": []
+}
+"@
 
 function save-config {
     param (
@@ -20,68 +37,18 @@ function save-config {
     }
 }
 
-Clear-Host
-
-# Obere Trennlinie
-Write-Host $line -ForegroundColor Cyan
-
-# Haupttitel (Zentriert durch Leerzeichen)
-Write-Host "                  $bold Welcome to the simpleSSH manager! $reset" -ForegroundColor White
-Write-Host "                                v1.0" -ForegroundColor Gray
-Write-Host "                        $bold Author: TobiMax1212 $reset" -ForegroundColor Gray
-
-Write-Host $line -ForegroundColor Cyan
-
-# Infoblock (Sauber strukturiert)
-Write-Host " [i] Info:    " -ForegroundColor Cyan -NoNewline
-Write-Host "This script will help you manage `n              your SSH connections easily. `n" -ForegroundColor White
-
-Write-Host " [?] Time:    " -ForegroundColor Yellow -NoNewline
-Write-Host "$zeit" -ForegroundColor Gray
-
-# Untere Trennlinie
-Write-Host $line -ForegroundColor Cyan
-Write-Host ""
-
-# Menu
-Write-Host "Please select an option:" -ForegroundColor Green
-Write-Host "1. Add a new SSH connection" -ForegroundColor White
-Write-Host "2. List all SSH connections" -ForegroundColor White
-Write-Host "3. Connect to an SSH server" -ForegroundColor White
-Write-Host "4. Remove an SSH connection" -ForegroundColor White
-Write-Host "5. Exit" -ForegroundColor White
-Write-Host "You can exit also by pressing 'strg + c' or 'ctrl + c'." -ForegroundColor Red
-
-Write-Host $line -ForegroundColor Cyan
-Write-Host "Shortcuts: (Press the corresponding number to select an option)" -ForegroundColor Green
-Write-Host $line -ForegroundColor Cyan
-
-# Config file handling
-$configPath = ".\data\config.json"
-
-#The Test-Path checks if the config file exists
-if (Test-Path $configPath) {
-    $config = Get-Content $configPath | ConvertFrom-Json
-    Write-Host "Config file loaded successfully." -ForegroundColor Green
-} else {
-    Write-Host "Config file not found. Creating a new one..." -ForegroundColor Yellow
-
-    $jsonTemplate = @"
-{
-    "Connections": [],
-    "Menu-Settings": []
-}
-"@
-
-    $config = $jsonTemplate | ConvertFrom-Json
-    $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
+save-config -Path $configPath -Config ($jsonTemplate | ConvertFrom-Json)
 }
 # End config file handling
 
-Write-Host ""
+$line = "=" * 70
+$zeit = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+$bold = "`e[1m"
+$reset = "`e[0m"
 
-#Backend contents
-
+# ==========================================
+# 2. Main-functions
+# ==========================================
 function add-ssh {
     Write-Host "Name of the SSH connection:" -ForegroundColor Yellow
     $cName = Read-Host "Enter the name"
@@ -92,6 +59,9 @@ function add-ssh {
     Write-Host "Port of the SSH connection (default is 22):" -ForegroundColor Yellow
     $cPort = Read-Host "Enter the port (or press Enter for default)"
 
+# ====================================================================
+# [INFO] BEGINN: MAINTENANCE NEEDED: Add shortcut feature for SSH connections
+# ====================================================================    
     #Write-Host "Would you like to add an menu shortcut for this connection? (y/n)" -ForegroundColor Yellow
     #$addShortcut = Read-Host "Enter 'y' for yes or 'n' for no"
 
@@ -111,6 +81,9 @@ function add-ssh {
         Write-Host "`n[Info] No shortcut assigned to connection '$cName'." -ForegroundColor Yellow
     }
 
+# ====================================================================
+# [INFO] END: MAINTENANCE NEEDED: Add shortcut feature for SSH connections
+# ==================================================================== 
 
     if (-not [string]::IsNullOrWhiteSpace($cHost) -and -not [string]::IsNullOrWhiteSpace($cName)) {
 
@@ -198,6 +171,57 @@ function remove-ssh {
 
 }
 
+# ==========================================
+# 3. Mainloop -- Section |
+# ==========================================
+
+Clear-Host
+
+# Obere Trennlinie
+Write-Host $line -ForegroundColor Cyan
+
+# Haupttitel (Zentriert durch Leerzeichen)
+Write-Host "                  $bold Welcome to the simpleSSH manager! $reset" -ForegroundColor White
+Write-Host "                                v1.0" -ForegroundColor Gray
+Write-Host "                        $bold Author: TobiMax1212 $reset" -ForegroundColor Gray
+
+Write-Host $line -ForegroundColor Cyan
+
+# Infoblock (Sauber strukturiert)
+Write-Host " [i] Info:    " -ForegroundColor Cyan -NoNewline
+Write-Host "This script will help you manage `n              your SSH connections easily. `n" -ForegroundColor White
+
+Write-Host " [?] Time:    " -ForegroundColor Yellow -NoNewline
+Write-Host "$zeit" -ForegroundColor Gray
+
+# Untere Trennlinie
+Write-Host $line -ForegroundColor Cyan
+Write-Host ""
+
+# Menu
+Write-Host "Please select an option:" -ForegroundColor Green
+Write-Host "1. Add a new SSH connection" -ForegroundColor White
+Write-Host "2. List all SSH connections" -ForegroundColor White
+Write-Host "3. Connect to an SSH server" -ForegroundColor White
+Write-Host "4. Remove an SSH connection" -ForegroundColor White
+Write-Host "5. Exit" -ForegroundColor White
+Write-Host "You can exit also by pressing 'strg + c' or 'ctrl + c'." -ForegroundColor Red
+
+Write-Host $line -ForegroundColor Cyan
+Write-Host "Shortcuts: (Press the corresponding number to select an option)" -ForegroundColor Green
+Write-Host $line -ForegroundColor Cyan
+
+if ($configSuccess -eq $true) {
+    Write-Host "[INFO] Config loaded successfully!" -ForegroundColor Green
+} else {
+    Write-Host "[INFO] Config not found! Creating new one..." -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+# ==========================================
+# 3. Mainloop -- Section ||
+# ==========================================
 
 $userInput = Read-Host "Enter your choice (1-5)"
 
@@ -237,6 +261,4 @@ switch ($userInput) {
         Write-Host "Invalid choice. Please select a valid option (1-6)." -ForegroundColor Red
     }
 }
-
-
 
