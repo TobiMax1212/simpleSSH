@@ -43,36 +43,105 @@ Write-Host $line -ForegroundColor Cyan
 # Config file handling
 $configPath = ".\data\config.json"
 
+#The Test-Path checks if the config file exists
 if (Test-Path $configPath) {
     $config = Get-Content $configPath | ConvertFrom-Json
     Write-Host "Config file loaded successfully." -ForegroundColor Green
 } else {
     Write-Host "Config file not found. Creating a new one..." -ForegroundColor Yellow
-    $config = @{}
-    $config | ConvertTo-Json | Set-Content $configPath
+
+    $jsonTemplate = @"
+{
+    "Connections": []
+    "Settings": []
+}
+"@
+
+    $config = $jsonTemplate | ConvertFrom-Json
+    $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
 }
 # End config file handling
 
 Write-Host ""
 
 #Backend contents
+
+function add-ssh {
+    Write-Host "Name of the SSH connection:" -ForegroundColor Yellow
+    $cName = Read-Host "Enter the name"
+    Write-Host "Host of the SSH connection:" -ForegroundColor Yellow
+    $cHost = Read-Host "Enter the host"
+    Write-Host "Port of the SSH connection (default is 22):" -ForegroundColor Yellow
+    $cPort = Read-Host "Enter the port (or press Enter for default)"
+
+    if (-not [string]::IsNullOrWhiteSpace($cHost) -and -not [string]::IsNullOrWhiteSpace($cName)) {
+
+        $newConnection = [PSCustomObject]@{
+            cName = $cName
+            cHost = $cHost
+            cPort = if ([string]::IsNullOrWhiteSpace($cPort)) { 22 } else { [int]$cPort }
+        }
+        $config.Connections += $newConnection
+
+        $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
+
+        Write-Host "SSH connection '$cName' added successfully!" -ForegroundColor Green
+    }else {
+        Write-Host "Name and Host cannot be empty. Please try again." -ForegroundColor Red
+    }
+
+}
+
+function show-ssh {
+    if ($config.Connections.Count -eq 0) {
+        Write-Host "No SSH connections found or the config file is empty." -ForegroundColor Yellow
+    } else {
+        Write-Host "List of SSH connections:" -ForegroundColor Green
+        foreach ($connection in $config.Connections) {
+            Write-Host "Name: $($connection.cName), Host: $($connection.cHost), Port: $($connection.cPort)" -ForegroundColor White
+        }
+    }
+}
+
+function connect-ssh {
+    if ($config.Connections.Count -eq 0) {
+        Write-Host "No SSH connections found. Please add a connection first." -ForegroundColor Yellow
+        return
+    }
+    
+    Write-Host "Available SSH connections:" -ForegroundColor Green
+    for ($i = 0; $i -lt $config.Connections.Count; $i++) {
+        $connection = $config.Connections[$i]
+        Write-Host "$($i + 1). Name: $($connection.cName), Host: $($connection.cHost), Port: $($connection.cPort)" -ForegroundColor White
+    }
+
+    $select = Read-Host "Enter the number of the connection. Please select a number between 1 and $($config.Connections.Count): "
+
+    if ($select -match '^\d+$' -and $select -ge 1 -and $select -le $config.Connections.Count) {
+        $selectedConnection = $config.Connections[$select - 1]
+        Write-Host "`n[OK] Connecting to $($selectedConnection.cName) at $($selectedConnection.cHost) on port $($selectedConnection.cPort)..." -ForegroundColor Green
+        # Command for ssh connection in powershell
+        ssh -p $
+    }
+}
+
 $userInput = Read-Host "Enter your choice (1-6)"
 
 switch ($userInput) {
     "1" {
         Write-Host "You selected: Add a new SSH connection" -ForegroundColor Green
         # Call the function or script to add a new SSH connection
-        .\add-ssh.ps1
+        add-ssh
     }
     "2" {
         Write-Host "You selected: List all SSH connections" -ForegroundColor Green
         # Call the function or script to list all SSH connections
-        .\list-ssh.ps1
+        show-ssh
     }
     "3" {
         Write-Host "You selected: Connect to an SSH server" -ForegroundColor Green
         # Call the function or script to connect to an SSH server
-        .\connect-ssh.ps1
+        connect-ssh
     }
     "4" {
         Write-Host "You selected: Remove an SSH connection" -ForegroundColor Green
@@ -97,12 +166,3 @@ switch ($userInput) {
 
 
 
-function add-ssh {
-    Write-Host "Name of the SSH connection:" -ForegroundColor Yellow
-    $name = Read-Host "Enter the name"
-    Write-Host "Host of the SSH connection:" -ForegroundColor Yellow
-    $host = Read-Host "Enter the host"
-    Write-Host "Port of the SSH connection (default is 22):" -ForegroundColor Yellow
-    $port = Read-Host "Enter the port (or press Enter for default)"
-
-}
