@@ -3,6 +3,23 @@ $zeit = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 $bold = "`e[1m"
 $reset = "`e[0m"
 
+function save-config {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        
+        [Parameter(Mandatory = $true)]
+        [object]$Config
+    )
+
+    try {
+        $Config | ConvertTo-Json -Depth 10 | Set-Content -Path $Path -Encoding UTF8
+        Write-Host "`n[OK] Configuration saved successfully to $Path." -ForegroundColor Green
+    } catch {
+        Write-Host "`n[Error] Error saving configuration: $_" -ForegroundColor Red
+    }
+}
+
 Clear-Host
 
 # Obere Trennlinie
@@ -17,7 +34,7 @@ Write-Host $line -ForegroundColor Cyan
 
 # Infoblock (Sauber strukturiert)
 Write-Host " [i] Info:    " -ForegroundColor Cyan -NoNewline
-Write-Host "This script will help you manage your SSH connections easily." -ForegroundColor White
+Write-Host "This script will help you manage `n              your SSH connections easily. `n" -ForegroundColor White
 
 Write-Host " [?] Time:    " -ForegroundColor Yellow -NoNewline
 Write-Host "$zeit" -ForegroundColor Gray
@@ -32,8 +49,7 @@ Write-Host "1. Add a new SSH connection" -ForegroundColor White
 Write-Host "2. List all SSH connections" -ForegroundColor White
 Write-Host "3. Connect to an SSH server" -ForegroundColor White
 Write-Host "4. Remove an SSH connection" -ForegroundColor White
-Write-Host "5. Add an shortcut for an SSH connection" -ForegroundColor White
-Write-Host "6. Exit" -ForegroundColor White
+Write-Host "5. Exit" -ForegroundColor White
 Write-Host "You can exit also by pressing 'strg + c' or 'ctrl + c'." -ForegroundColor Red
 
 Write-Host $line -ForegroundColor Cyan
@@ -52,8 +68,8 @@ if (Test-Path $configPath) {
 
     $jsonTemplate = @"
 {
-    "Connections": []
-    "Settings": []
+    "Connections": [],
+    "Menu-Settings": []
 }
 "@
 
@@ -69,34 +85,59 @@ Write-Host ""
 function add-ssh {
     Write-Host "Name of the SSH connection:" -ForegroundColor Yellow
     $cName = Read-Host "Enter the name"
+    Write-Host "Username for the SSH connection:" -ForegroundColor Yellow
+    $cUname = Read-Host "Enter the username"
     Write-Host "Host of the SSH connection:" -ForegroundColor Yellow
     $cHost = Read-Host "Enter the host"
     Write-Host "Port of the SSH connection (default is 22):" -ForegroundColor Yellow
     $cPort = Read-Host "Enter the port (or press Enter for default)"
 
+    #Write-Host "Would you like to add an menu shortcut for this connection? (y/n)" -ForegroundColor Yellow
+    #$addShortcut = Read-Host "Enter 'y' for yes or 'n' for no"
+
+    if ($addShortcut -eq 'y') {
+        Write-Host "Choose a shortcut number (6-9) for this connection:" -ForegroundColor Yellow
+        $shortcutNumber = Read-Host "Enter a number between 6 and 9"
+        if ($shortcutNumber -match '^[6-9]$') {
+            $config."Menu-Settings" += [PSCustomObject]@{
+                Shortcut = $shortcutNumber
+                ConnectionName = $cName
+            }
+            Write-Host "`n[OK] Shortcut '$shortcutNumber' assigned to connection '$cName'." -ForegroundColor Green
+        } else {
+            Write-Host "`n[Error] Invalid shortcut number. Please enter a number between 6 and 9." -ForegroundColor Red
+        }
+    }else {
+        Write-Host "`n[Info] No shortcut assigned to connection '$cName'." -ForegroundColor Yellow
+    }
+
+
     if (-not [string]::IsNullOrWhiteSpace($cHost) -and -not [string]::IsNullOrWhiteSpace($cName)) {
 
         $newConnection = [PSCustomObject]@{
             cName = $cName
+            cUname = $cUname
             cHost = $cHost
             cPort = if ([string]::IsNullOrWhiteSpace($cPort)) { 22 } else { [int]$cPort }
         }
         $config.Connections += $newConnection
 
-        $config | ConvertTo-Json -Depth 10 | Set-Content $configPath -Encoding UTF8
-
-        Write-Host "SSH connection '$cName' added successfully!" -ForegroundColor Green
+        save-config -Path $configPath -Config $config
+        
+        Write-Host "`n[OK] SSH connection '$cName' added successfully!" -ForegroundColor Green
     }else {
-        Write-Host "Name and Host cannot be empty. Please try again." -ForegroundColor Red
+        Write-Host "`n[Error] Name and Host cannot be empty. Please try again." -ForegroundColor Red
     }
+
+    
 
 }
 
 function show-ssh {
     if ($config.Connections.Count -eq 0) {
-        Write-Host "No SSH connections found or the config file is empty." -ForegroundColor Yellow
+        Write-Host "`n[Error] No SSH connections found or the config file is empty." -ForegroundColor Red
     } else {
-        Write-Host "List of SSH connections:" -ForegroundColor Green
+        Write-Host "`n[OK] List of SSH connections:" -ForegroundColor Green
         foreach ($connection in $config.Connections) {
             Write-Host "Name: $($connection.cName), Host: $($connection.cHost), Port: $($connection.cPort)" -ForegroundColor White
         }
@@ -105,7 +146,7 @@ function show-ssh {
 
 function connect-ssh {
     if ($config.Connections.Count -eq 0) {
-        Write-Host "No SSH connections found. Please add a connection first." -ForegroundColor Yellow
+        Write-Host "`n[Error] No SSH connections found. Please add a connection first." -ForegroundColor Red
         return
     }
     
@@ -121,11 +162,44 @@ function connect-ssh {
         $selectedConnection = $config.Connections[$select - 1]
         Write-Host "`n[OK] Connecting to $($selectedConnection.cName) at $($selectedConnection.cHost) on port $($selectedConnection.cPort)..." -ForegroundColor Green
         # Command for ssh connection in powershell
-        ssh -p $
+        ssh -p $($selectedConnection.CPort) "$($selectedConnection.cUname)@$($selectedConnection.cHost)"
+    } else {
+        Write-Host "`n[Error] Invalid selection. Please select a valid number between 1 and $($config.Connections.Count)." -ForegroundColor Red
     }
 }
 
-$userInput = Read-Host "Enter your choice (1-6)"
+function remove-ssh {
+    if ($config.Connections.Count -eq 0) {
+        Write-Host "`n[Error] No SSH connections found. Please add a connection first." -ForegroundColor Red
+        return
+    }
+    
+    Write-Host "`n[OK] Available SSH connections for deletion:" -ForegroundColor Green
+    for ($i = 0; $i -lt $config.Connections.Count; $i++) {
+        $connection = $config.Connections[$i]
+        Write-Host "$($i + 1). Name: $($connection.cName), Host: $($connection.cHost), Port: $($connection.cPort)" -ForegroundColor White
+    }
+
+    $select = Read-Host "Enter the number of the connection, that you want to delete. Please select a number between 1 and $($config.Connections.Count): "
+
+    if ($select -match '^\d+$' -and $select -ge 1 -and $select -le $config.Connections.Count) {
+        $selectedConnection = $config.Connections[$select - 1]
+        Write-Host "`n[OK] Deleting connection $($selectedConnection.cName)..." -ForegroundColor Green
+
+        $config.Connections = $config.Connections | Where-Object { $_.cName -ne $selectedConnection.cName }
+        
+        save-config -Path $configPath -Config $config
+
+
+        Write-Host "`n[OK] Connection '$($selectedConnection.cName)' deleted successfully!" -ForegroundColor Green #<-- Maybe wont work
+    } else {
+        Write-Host "`n[Error] Invalid selection. Please select a valid number between 1 and $($config.Connections.Count)." -ForegroundColor Red
+    }
+
+}
+
+
+$userInput = Read-Host "Enter your choice (1-5)"
 
 switch ($userInput) {
     "1" {
@@ -146,17 +220,17 @@ switch ($userInput) {
     "4" {
         Write-Host "You selected: Remove an SSH connection" -ForegroundColor Green
         # Call the function or script to remove an SSH connection
-        .\remove-ssh.ps1
+        remove-ssh
     }
-    "5" {
-        Write-Host "You selected: Add a shortcut for an SSH connection" -ForegroundColor Green
-        # Call the function or script to add a shortcut for an SSH connection
-        .\add-shortcut.ps1
-    }
-    "6" {
 
-        Write-Host "Exiting the simpleSSH manager. Goodbye!" -ForegroundColor Red
-        Start-Sleep -Seconds 2
+    "5" {
+
+        Write-Host "`n[OK] Exiting the simpleSSH manager. Goodbye!" -ForegroundColor Red
+        $timeout = 2
+        for ($i = $timeout; $i -gt 0; $i--) {
+            Write-Host "Exiting in $i seconds..." -ForegroundColor DarkGray
+            Start-Sleep -Seconds 1
+        }
         exit
     }
     default {
