@@ -22,32 +22,81 @@ A lightweight, terminal-based SSH connection manager written entirely in PowerSh
    ```powershell
    git clone https://github.com/TobiMax1212/simpleSSH.git
    cd simpleSSH
+   ```
 
-    Run the script:
-    Execute the script in your PowerShell console.
-    PowerShell
+2. **Run the script:**
+   Execute the script in your PowerShell console.
+   ```powershell
+   .\simpleSSH.ps1
+   ```
+   (Note: Ensure your PowerShell execution policy allows the running of local scripts.)
 
-    .\simpleSSH.ps1
+### Prerequisites
 
-    (Note: Ensure your PowerShell execution policy allows the running of local scripts.)
+* PowerShell 5.1 or newer (PowerShell Core 7+ recommended).
+* OpenSSH Client installed on your system (usually pre-installed on Windows 10/11 and standard Linux distributions).
 
-    Prerequisites:
+---
 
-        PowerShell 5.1 or newer (PowerShell Core 7+ recommended).
+## Usage Example
 
-        OpenSSH Client installed on your system (usually pre-installed on Windows 10/11 and standard Linux distributions).
+When you run `simpleSSH.ps1`, the script will display a menu with several options:
 
-Roadmap / To-Do
+```
+======================================================================
+                           Welcome to the simpleSSH manager!            
+======================================================================
+                              version: 7.2.5                            
+                             Author: TobiMax1212                        
+======================================================================
 
-    [ Shortcut feature for fast SHH connection within the menu ]
+ [i] Info:    This script will help you manage 
+              your SSH connections easily.
 
-    [ Getting the script in a loop ]
+ [?] Time:    2023-10-15 14:30:00
 
-    [ Output all available devices within the network ]
+======================================================================
+Please select an option:
+1. Add a new SSH connection
+2. List all SSH connections
+3. Connect to an SSH server
+4. Remove an SSH connection
+5. Exit
+You can exit also by pressing 'strg + c' or 'ctrl + c'.
+======================================================================
+Shortcuts: (Press the corresponding number to select an option)
+======================================================================
 
-    [ Copy / Export the json config within the menu ]
+[INFO] Config loaded successfully!
+```
 
+### Menu Options
 
-Author
+1. **Add a new SSH connection**
+   - Enter the name, username, host, and optionally a port for the SSH connection.
+   
+2. **List all SSH connections**
+   - Displays all stored SSH connections.
+
+3. **Connect to an SSH server**
+   - Select a connection from the list to connect via SSH.
+   
+4. **Remove an SSH connection**
+   - Remove a selected SSH connection from the configuration.
+
+5. **Exit**
+   - Exit the script after a short delay.
+
+---
+
+## Roadmap / To-Do
+
+* [ ] Shortcut feature for fast SSH connection within the menu
+* [ ] Output all available devices within the network
+* [ ] Copy / Export the JSON config within the menu
+
+---
+
+## Author
 
 Created by TobiMax1212
