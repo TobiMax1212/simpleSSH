@@ -46,6 +46,9 @@ $zeit = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 $bold = "`e[1m"
 $reset = "`e[0m"
 
+$pwshVersion = $PSVersionTable.PSVersion
+
+
 # ==========================================
 # 2. Main-functions
 # ==========================================
@@ -173,92 +176,105 @@ function remove-ssh {
 
 # ==========================================
 # 3. Mainloop -- Section |
-# ==========================================
+# ========================================== 
 
 Clear-Host
 
-# Obere Trennlinie
-Write-Host $line -ForegroundColor Cyan
+while($true) {
+    # Obere Trennlinie
+    Write-Host $line -ForegroundColor Cyan
 
-# Haupttitel (Zentriert durch Leerzeichen)
-Write-Host "                  $bold Welcome to the simpleSSH manager! $reset" -ForegroundColor White
-Write-Host "                                v1.0" -ForegroundColor Gray
-Write-Host "                        $bold Author: TobiMax1212 $reset" -ForegroundColor Gray
+    # Haupttitel: "Welcome to the simpleSSH manager!" (33 Zeichen)
+    # (70 - 33) / 2 = 18.5 -> 18 Leerzeichen
+    Write-Host (" " * 18 + "$bold" + "Welcome to the simpleSSH manager!" + "$reset") -ForegroundColor White
 
-Write-Host $line -ForegroundColor Cyan
+    # Version: "version " + $pwshVersion (ca. 13-14 Zeichen)
+    # (70 - 14) / 2 = 28 -> 28 Leerzeichen
+    Write-Host (" " * 28 + "version $pwshVersion") -ForegroundColor Gray
 
-# Infoblock (Sauber strukturiert)
-Write-Host " [i] Info:    " -ForegroundColor Cyan -NoNewline
-Write-Host "This script will help you manage `n              your SSH connections easily. `n" -ForegroundColor White
+    # Autor: "Author: TobiMax1212" (19 Zeichen)
+    # (70 - 19) / 2 = 25.5 -> 25 Leerzeichen
+    Write-Host (" " * 25 + "$bold" + "Author: TobiMax1212" + "$reset") -ForegroundColor Gray
 
-Write-Host " [?] Time:    " -ForegroundColor Yellow -NoNewline
-Write-Host "$zeit" -ForegroundColor Gray
-
-# Untere Trennlinie
-Write-Host $line -ForegroundColor Cyan
-Write-Host ""
-
-# Menu
-Write-Host "Please select an option:" -ForegroundColor Green
-Write-Host "1. Add a new SSH connection" -ForegroundColor White
-Write-Host "2. List all SSH connections" -ForegroundColor White
-Write-Host "3. Connect to an SSH server" -ForegroundColor White
-Write-Host "4. Remove an SSH connection" -ForegroundColor White
-Write-Host "5. Exit" -ForegroundColor White
-Write-Host "You can exit also by pressing 'strg + c' or 'ctrl + c'." -ForegroundColor Red
-
-Write-Host $line -ForegroundColor Cyan
-Write-Host "Shortcuts: (Press the corresponding number to select an option)" -ForegroundColor Green
-Write-Host $line -ForegroundColor Cyan
-
-if ($configSuccess -eq $true) {
-    Write-Host "[INFO] Config loaded successfully!" -ForegroundColor Green
-} else {
-    Write-Host "[INFO] Config not found! Creating new one..." -ForegroundColor Yellow
-}
-
-Write-Host ""
-
-# ==========================================
-# 3. Mainloop -- Section ||
-# ==========================================
-
-$userInput = Read-Host "Enter your choice (1-5)"
-
-switch ($userInput) {
-    "1" {
-        Write-Host "You selected: Add a new SSH connection" -ForegroundColor Green
-        # Call the function or script to add a new SSH connection
-        add-ssh
+    Write-Host $line -ForegroundColor Cyan
+    
+    # Infoblock (Sauber strukturiert)
+    Write-Host " [i] Info:    " -ForegroundColor Cyan -NoNewline
+    Write-Host "This script will help you manage `n              your SSH connections easily. `n" -ForegroundColor White
+    
+    Write-Host " [?] Time:    " -ForegroundColor Yellow -NoNewline
+    Write-Host "$zeit" -ForegroundColor Gray
+    
+    # Untere Trennlinie
+    Write-Host $line -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Menu
+    Write-Host "Please select an option:" -ForegroundColor Green
+    Write-Host "1. Add a new SSH connection" -ForegroundColor White
+    Write-Host "2. List all SSH connections" -ForegroundColor White
+    Write-Host "3. Connect to an SSH server" -ForegroundColor White
+    Write-Host "4. Remove an SSH connection" -ForegroundColor White
+    Write-Host "5. Exit" -ForegroundColor White
+    Write-Host "You can exit also by pressing 'strg + c' or 'ctrl + c'." -ForegroundColor Red
+    
+    Write-Host $line -ForegroundColor Cyan
+    Write-Host "Shortcuts: (Press the corresponding number to select an option)" -ForegroundColor Green
+    Write-Host $line -ForegroundColor Cyan
+    
+    if ($configSuccess -eq $true) {
+        Write-Host "[INFO] Config loaded successfully!" -ForegroundColor Green
+    } else {
+        Write-Host "[INFO] Config not found! Creating new one..." -ForegroundColor Yellow
     }
-    "2" {
-        Write-Host "You selected: List all SSH connections" -ForegroundColor Green
-        # Call the function or script to list all SSH connections
-        show-ssh
-    }
-    "3" {
-        Write-Host "You selected: Connect to an SSH server" -ForegroundColor Green
-        # Call the function or script to connect to an SSH server
-        connect-ssh
-    }
-    "4" {
-        Write-Host "You selected: Remove an SSH connection" -ForegroundColor Green
-        # Call the function or script to remove an SSH connection
-        remove-ssh
-    }
-
-    "5" {
-
-        Write-Host "`n[OK] Exiting the simpleSSH manager. Goodbye!" -ForegroundColor Red
-        $timeout = 2
-        for ($i = $timeout; $i -gt 0; $i--) {
-            Write-Host "Exiting in $i seconds..." -ForegroundColor DarkGray
-            Start-Sleep -Seconds 1
+    
+    Write-Host ""
+    
+    # ==========================================
+    # 3. Mainloop -- Section ||
+    # ==========================================
+    
+    $userInput = Read-Host "Enter your choice (1-5)"
+    
+    switch ($userInput) {
+        "1" {
+            Write-Host "You selected: Add a new SSH connection" -ForegroundColor Green
+            # Call the function or script to add a new SSH connection
+            add-ssh
         }
-        exit
+        "2" {
+            Write-Host "You selected: List all SSH connections" -ForegroundColor Green
+            # Call the function or script to list all SSH connections
+            show-ssh
+        }
+        "3" {
+            Write-Host "You selected: Connect to an SSH server" -ForegroundColor Green
+            # Call the function or script to connect to an SSH server
+            connect-ssh
+        }
+        "4" {
+            Write-Host "You selected: Remove an SSH connection" -ForegroundColor Green
+            # Call the function or script to remove an SSH connection
+            remove-ssh
+        }
+    
+        "5" {
+    
+            Write-Host "`n[OK] Exiting the simpleSSH manager. Goodbye!" -ForegroundColor Red
+            $timeout = 2
+            for ($i = $timeout; $i -gt 0; $i--) {
+                Write-Host "Exiting in $i seconds..." -ForegroundColor DarkGray
+                Start-Sleep -Seconds 1
+            }
+            exit
+        }
+        default {
+            Write-Host "Invalid choice. Please select a valid option (1-6)." -ForegroundColor Red
+        }
     }
-    default {
-        Write-Host "Invalid choice. Please select a valid option (1-6)." -ForegroundColor Red
-    }
+
+    Read-Host "`nPress Enter to return to the main menu..." | Out-Null
+    Clear-Host
+
 }
 
