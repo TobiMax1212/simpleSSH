@@ -94,6 +94,7 @@ Shortcuts: (Press the corresponding number to select an option)
 * [ ] Shortcut feature for fast SSH connection within the menu
 * [ ] Output all available devices within the network
 * [ ] Copy / Export the JSON config within the menu
+* [ ] Enhance and refine the GitHub Workflow within the repository
 
 ---
 
