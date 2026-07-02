@@ -6,20 +6,7 @@
 $configPath = ".\data\config.json"
 $configSuccess = $false
 
-#The Test-Path checks if the config file exists
-if (Test-Path $configPath) {
-    $config = Get-Content $configPath | ConvertFrom-Json
-    $configSuccess = $true
-} else {
-    Write-Host "Config file not found. Creating a new one..." -ForegroundColor Yellow
-
-    $jsonTemplate = @"
-{
-    "Connections": [],
-    "Menu-Settings": []
-}
-"@
-
+# persist/save helper should be available regardless of config existence
 function save-config {
     param (
         [Parameter(Mandatory = $true)]
@@ -37,6 +24,19 @@ function save-config {
     }
 }
 
+#The Test-Path checks if the config file exists
+if (Test-Path $configPath) {
+    $config = Get-Content $configPath | ConvertFrom-Json
+    $configSuccess = $true
+} else {
+    Write-Host "Config file not found. Creating a new one..." -ForegroundColor Yellow
+
+    $jsonTemplate = @"
+{
+    "Connections": [],
+    "Menu-Settings": []
+}
+"@
 save-config -Path $configPath -Config ($jsonTemplate | ConvertFrom-Json)
 }
 # End config file handling
