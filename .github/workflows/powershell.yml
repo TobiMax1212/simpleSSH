@@ -11,45 +11,43 @@ on:
 permissions:
   contents: read
   security-events: write
-  actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+  actions: read
 
 jobs:
   build:
     permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+      contents: read
+      security-events: write
+      actions: read
     name: PSScriptAnalyzer and Security Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up PowerShell
-        uses: actions/setup-powershell@v2
-
       - name: Install PSScriptAnalyzer
+        shell: pwsh
         run: |
-          pwsh -Command "Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser"
+          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
 
       - name: Run PSScriptAnalyzer for Syntax and Semantic Checks
         id: pssa
+        shell: pwsh
         run: |
-          pwsh -Command @"
           $results = Invoke-ScriptAnalyzer -Path .\ -Recurse -ReportSummary
           if ($results) {
-              Write-Host "##vso[task.setvariable name=pssaResults]$($results | ConvertTo-Json -Depth 10)"
+              $results | ConvertTo-Json -Depth 10 -Compress | Out-File -FilePath pssa_results.json
               $results | Format-List
-              exit 1
+              "has_errors=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
               Write-Host "No issues found by PSScriptAnalyzer."
+              "has_errors=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
-          "@
 
-      - name: Upload SARIF results file (if available)
-        if: steps.pssa.outputs.pssaResults
+      - name: Generate PSSA SARIF results file
+        if: steps.pssa.outputs.has_errors == 'true'
+        shell: pwsh
         run: |
-          pwsh -Command @"
-          $results = ConvertFrom-Json '${{ steps.pssa.outputs.pssaResults }}'
+          $results = Get-Content pssa_results.json | ConvertFrom-Json
           $sarifContent = @{
               version = '2.1.0'
               runs = @(
@@ -117,37 +115,37 @@ jobs:
                       )
                   }
               )
-          } | ConvertTo-Json -Depth 10 -Compress > results.sarif
-          "@
+          } | ConvertTo-Json -Depth 10 -Compress | Out-File -FilePath results.sarif
 
-      - name: Upload SARIF results file to GitHub
-        if: steps.pssa.outputs.pssaResults
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload PSSA SARIF results file to GitHub
+        if: steps.pssa.outputs.has_errors == 'true'
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
 
       - name: Run Security Checks
+        id: securityChecks
+        shell: pwsh
         run: |
-          pwsh -Command @"
           $securityRules = @(
               'PSAvoidGlobalAliases',
               'PSAvoidUsingConvertToSecureStringWithPlainText'
           )
           $results = Invoke-ScriptAnalyzer -Path .\ -Recurse -IncludeRule $securityRules
           if ($results) {
-              Write-Host "##vso[task.setvariable name=securityResults]$($results | ConvertTo-Json -Depth 10)"
+              $results | ConvertTo-Json -Depth 10 -Compress | Out-File -FilePath security_results.json
               $results | Format-List
-              exit 1
+              "has_errors=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
               Write-Host "No security issues found by PSScriptAnalyzer."
+              "has_errors=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
-          "@
 
-      - name: Upload Security SARIF results file (if available)
-        if: steps.securityChecks.outputs.securityResults
+      - name: Generate Security SARIF results file
+        if: steps.securityChecks.outputs.has_errors == 'true'
+        shell: pwsh
         run: |
-          pwsh -Command @"
-          $results = ConvertFrom-Json '${{ steps.securityChecks.outputs.securityResults }}'
+          $results = Get-Content security_results.json | ConvertFrom-Json
           $sarifContent = @{
               version = '2.1.0'
               runs = @(
@@ -203,11 +201,19 @@ jobs:
                       )
                   }
               )
-          } | ConvertTo-Json -Depth 10 -Compress > security-results.sarif
-          "@
+          } | ConvertTo-Json -Depth 10 -Compress | Out-File -FilePath security-results.sarif
 
       - name: Upload Security SARIF results file to GitHub
-        if: steps.securityChecks.outputs.securityResults
-        uses: github/codeql-action/upload-sarif@v2
+        if: steps.securityChecks.outputs.has_errors == 'true'
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: security-results.sarif
+
+      - name: Fail build if errors were found
+        if: always()
+        shell: pwsh
+        run: |
+          if ((Test-Path pssa_results.json) -or (Test-Path security_results.json)) {
+              Write-Error "PSScriptAnalyzer or Security Checks found issues. Check the GitHub Security tab or logs."
+              exit 1
+          }
