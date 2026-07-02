@@ -175,28 +175,51 @@ function remove-ssh {
 }
 
 # ==========================================
-# 3. Mainloop
+# 3. Mainloop -- Section |
 # ========================================== 
 
 Clear-Host
 
 while($true) {
-    # Obere Trennlinie
-    Write-Host $line -ForegroundColor Cyan
 
-    # Haupttitel: "Welcome to the simpleSSH manager!" (33 Zeichen)
-    # (70 - 33) / 2 = 18.5 -> 18 Leerzeichen
-    Write-Host (" " * 18 + "$bold" + "Welcome to the simpleSSH manager!" + "$reset") -ForegroundColor White
+    if ($pwshVersion -lt [Version]"7.0") {
+        Write-Host "[WARNING] You are using PowerShell version $pwshVersion. `n          It is recommended to use PowerShell 7 or higher `n          for better compatibility." -ForegroundColor yellow
+        # Obere Trennlinie
+        Write-Host $line -ForegroundColor Cyan
 
-    # Version: "version " + $pwshVersion (ca. 13-14 Zeichen)
-    # (70 - 14) / 2 = 28 -> 28 Leerzeichen
-    Write-Host (" " * 28 + "version $pwshVersion") -ForegroundColor Gray
+        # Haupttitel: "Welcome to the simpleSSH manager!" (33 Zeichen)
+        # (70 - 33) / 2 = 18.5 -> 18 Leerzeichen
+        Write-Host (" " * 18 + "Welcome to the simpleSSH manager!" + " ") -ForegroundColor White
 
-    # Autor: "Author: TobiMax1212" (19 Zeichen)
-    # (70 - 19) / 2 = 25.5 -> 25 Leerzeichen
-    Write-Host (" " * 25 + "$bold" + "Author: TobiMax1212" + "$reset") -ForegroundColor Gray
+        # Version: "version " + $pwshVersion (ca. 13-14 Zeichen)
+        # (70 - 14) / 2 = 28 -> 28 Leerzeichen
+        Write-Host (" " * 28 + "version $pwshVersion") -ForegroundColor Gray
 
-    Write-Host $line -ForegroundColor Cyan
+        # Autor: "Author: TobiMax1212" (19 Zeichen)
+        # (70 - 19) / 2 = 25.5 -> 25 Leerzeichen
+        Write-Host (" " * 25 + "Author: TobiMax1212" + " ") -ForegroundColor Gray
+
+        Write-Host $line -ForegroundColor Cyan
+    } else {
+
+        # Obere Trennlinie
+        Write-Host $line -ForegroundColor Cyan
+    
+        # Haupttitel: "Welcome to the simpleSSH manager!" (33 Zeichen)
+        # (70 - 33) / 2 = 18.5 -> 18 Leerzeichen
+        Write-Host (" " * 18 + "$bold" + "Welcome to the simpleSSH manager!" + "$reset") -ForegroundColor White
+    
+        # Version: "version " + $pwshVersion (ca. 13-14 Zeichen)
+        # (70 - 14) / 2 = 28 -> 28 Leerzeichen
+        Write-Host (" " * 28 + "version $pwshVersion") -ForegroundColor Gray
+    
+        # Autor: "Author: TobiMax1212" (19 Zeichen)
+        # (70 - 19) / 2 = 25.5 -> 25 Leerzeichen
+        Write-Host (" " * 25 + "$bold" + "Author: TobiMax1212" + "$reset") -ForegroundColor Gray
+    
+        Write-Host $line -ForegroundColor Cyan
+
+    }
     
     # Infoblock (Sauber strukturiert)
     Write-Host " [i] Info:    " -ForegroundColor Cyan -NoNewline
