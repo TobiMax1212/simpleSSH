@@ -95,6 +95,7 @@ Shortcuts: (Press the corresponding number to select an option)
 * [ ] Output all available devices within the network
 * [ ] Copy / Export the JSON config within the menu
 * [ ] Enhance and refine the GitHub Workflow within the repository
+* [ ] Fix backend feature, like the save function for SSH connections
 
 ---
 
