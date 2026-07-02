@@ -1,13 +1,4 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-#
-# https://github.com/microsoft/action-psscriptanalyzer
-# For more information on PSScriptAnalyzer in general, see
-# https://github.com/PowerShell/PSScriptAnalyzer
-
-name: PSScriptAnalyzer
+name: PSScriptAnalyzer and Security Checks
 
 on:
   push:
@@ -19,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
 
 jobs:
   build:
@@ -26,24 +19,195 @@ jobs:
       contents: read # for actions/checkout to fetch code
       security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-    name: PSScriptAnalyzer
+    name: PSScriptAnalyzer and Security Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run PSScriptAnalyzer
-        uses: microsoft/psscriptanalyzer-action@6b2948b1944407914a58661c49941824d149734f
-        with:
-          # Check https://github.com/microsoft/action-psscriptanalyzer for more info about the options.
-          # The below set up runs PSScriptAnalyzer to your entire repository and runs some basic security rules.
-          path: .\
-          recurse: true
-          # Include your own basic security rules. Removing this option will run all the rules
-          includeRule: '"PSAvoidGlobalAliases", "PSAvoidUsingConvertToSecureStringWithPlainText"'
-          output: results.sarif
+      - name: Set up PowerShell
+        uses: PowerShell/setup-PowerShell@v2
 
-      # Upload the SARIF file generated in the previous step
-      - name: Upload SARIF results file
+      - name: Install PSScriptAnalyzer
+        run: |
+          pwsh -Command "Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser"
+
+      - name: Run PSScriptAnalyzer for Syntax and Semantic Checks
+        id: pssa
+        run: |
+          pwsh -Command @"
+          $results = Invoke-ScriptAnalyzer -Path .\ -Recurse -ReportSummary
+          if ($results) {
+              Write-Host "##vso[task.setvariable name=pssaResults]$($results | ConvertTo-Json -Depth 10)"
+              $results | Format-List
+              exit 1
+          } else {
+              Write-Host "No issues found by PSScriptAnalyzer."
+          }
+          "@
+
+      - name: Upload SARIF results file (if available)
+        if: steps.pssa.outputs.pssaResults
+        run: |
+          pwsh -Command @"
+          $results = ConvertFrom-Json '${{ steps.pssa.outputs.pssaResults }}'
+          $sarifContent = @{
+              version = '2.1.0'
+              runs = @(
+                  @{
+                      tool = @{
+                          driver = @{
+                              name = 'PSScriptAnalyzer'
+                              informationUri = 'https://github.com/PowerShell/PSScriptAnalyzer'
+                              rules = @(
+                                  @{
+                                      id = 'PSAvoidGlobalAliases'
+                                      shortDescription = @{ text = 'Avoid Global Aliases' }
+                                      fullDescription = @{ text = 'Using global aliases can lead to unexpected behavior and should be avoided.' }
+                                      helpUri = 'https://github.com/PowerShell/PSScriptAnalyzer/blob/master/RuleDocumentation/PSAvoidGlobalAliases.md'
+                                  },
+                                  @{
+                                      id = 'PSAvoidUsingConvertToSecureStringWithPlainText'
+                                      shortDescription = @{ text = 'Avoid Using ConvertTo-SecureString with Plain Text' }
+                                      fullDescription = @{ text = 'Using ConvertTo-SecureString with plain text can expose sensitive information.' }
+                                      helpUri = 'https://github.com/PowerShell/PSScriptAnalyzer/blob/master/RuleDocumentation/PSAvoidUsingConvertToSecureStringWithPlainText.md'
+                                  },
+                                  @{
+                                      id = 'PSShouldProcess'
+                                      shortDescription = @{ text = 'Should Process' }
+                                      fullDescription = @{ text = 'Cmdlets should support -WhatIf and -Confirm.' }
+                                      helpUri = 'https://github.com/PowerShell/PSScriptAnalyzer/blob/master/RuleDocumentation/PSShouldProcess.md'
+                                  },
+                                  @{
+                                      id = 'PSUseShouldProcessForStateChangingFunctions'
+                                      shortDescription = @{ text = 'Use Should Process for State Changing Functions' }
+                                      fullDescription = @{ text = 'State-changing functions should support -WhatIf and -Confirm.' }
+                                      helpUri = 'https://github.com/PowerShell/PSScriptAnalyzer/blob/master/RuleDocumentation/PSUseShouldProcessForStateChangingFunctions.md'
+                                  }
+                              )
+                          }
+                      }
+                      results = @(
+                          foreach ($result in $results) {
+                              @{
+                                  ruleId = $result.RuleName
+                                  level = switch ($result.Severity) {
+                                      'Error' { 'error' }
+                                      'Warning' { 'warning' }
+                                      'Information' { 'note' }
+                                      default { 'note' }
+                                  }
+                                  message = @{
+                                      text = $result.Message
+                                  }
+                                  locations = @(
+                                      @{
+                                          physicalLocation = @{
+                                              artifactLocation = @{
+                                                  uri = [System.Uri]::EscapeDataString($result.ScriptName)
+                                              }
+                                              region = @{
+                                                  startLine = $result.Line
+                                                  startColumn = $result.Column
+                                              }
+                                          }
+                                      }
+                                  )
+                              }
+                          }
+                      )
+                  }
+              )
+          } | ConvertTo-Json -Depth 10 -Compress > results.sarif
+          "@
+
+      - name: Upload SARIF results file to GitHub
+        if: steps.pssa.outputs.pssaResults
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: results.sarif
+
+      - name: Run Security Checks
+        run: |
+          pwsh -Command @"
+          $securityRules = @(
+              'PSAvoidGlobalAliases',
+              'PSAvoidUsingConvertToSecureStringWithPlainText'
+          )
+          $results = Invoke-ScriptAnalyzer -Path .\ -Recurse -IncludeRule $securityRules
+          if ($results) {
+              Write-Host "##vso[task.setvariable name=securityResults]$($results | ConvertTo-Json -Depth 10)"
+              $results | Format-List
+              exit 1
+          } else {
+              Write-Host "No security issues found by PSScriptAnalyzer."
+          }
+          "@
+
+      - name: Upload Security SARIF results file (if available)
+        if: steps.securityChecks.outputs.securityResults
+        run: |
+          pwsh -Command @"
+          $results = ConvertFrom-Json '${{ steps.securityChecks.outputs.securityResults }}'
+          $sarifContent = @{
+              version = '2.1.0'
+              runs = @(
+                  @{
+                      tool = @{
+                          driver = @{
+                              name = 'PSScriptAnalyzer Security Checks'
+                              informationUri = 'https://github.com/PowerShell/PSScriptAnalyzer'
+                              rules = @(
+                                  @{
+                                      id = 'PSAvoidGlobalAliases'
+                                      shortDescription = @{ text = 'Avoid Global Aliases' }
+                                      fullDescription = @{ text = 'Using global aliases can lead to unexpected behavior and should be avoided.' }
+                                      helpUri = 'https://github.com/PowerShell/PSScriptAnalyzer/blob/master/RuleDocumentation/PSAvoidGlobalAliases.md'
+                                  },
+                                  @{
+                                      id = 'PSAvoidUsingConvertToSecureStringWithPlainText'
+                                      shortDescription = @{ text = 'Avoid Using ConvertTo-SecureString with Plain Text' }
+                                      fullDescription = @{ text = 'Using ConvertTo-SecureString with plain text can expose sensitive information.' }
+                                      helpUri = 'https://github.com/PowerShell/PSScriptAnalyzer/blob/master/RuleDocumentation/PSAvoidUsingConvertToSecureStringWithPlainText.md'
+                                  }
+                              )
+                          }
+                      }
+                      results = @(
+                          foreach ($result in $results) {
+                              @{
+                                  ruleId = $result.RuleName
+                                  level = switch ($result.Severity) {
+                                      'Error' { 'error' }
+                                      'Warning' { 'warning' }
+                                      'Information' { 'note' }
+                                      default { 'note' }
+                                  }
+                                  message = @{
+                                      text = $result.Message
+                                  }
+                                  locations = @(
+                                      @{
+                                          physicalLocation = @{
+                                              artifactLocation = @{
+                                                  uri = [System.Uri]::EscapeDataString($result.ScriptName)
+                                              }
+                                              region = @{
+                                                  startLine = $result.Line
+                                                  startColumn = $result.Column
+                                              }
+                                          }
+                                      }
+                                  )
+                              }
+                          }
+                      )
+                  }
+              )
+          } | ConvertTo-Json -Depth 10 -Compress > security-results.sarif
+          "@
+
+      - name: Upload Security SARIF results file to GitHub
+        if: steps.securityChecks.outputs.securityResults
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: security-results.sarif
