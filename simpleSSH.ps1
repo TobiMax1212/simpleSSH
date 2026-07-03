@@ -42,7 +42,6 @@ save-config -Path $configPath -Config ($jsonTemplate | ConvertFrom-Json)
 # End config file handling
 
 $line = "=" * 70
-$zeit = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 $bold = "`e[1m"
 $reset = "`e[0m"
 
@@ -181,6 +180,8 @@ function remove-ssh {
 Clear-Host
 
 while($true) {
+
+    $zeit = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 
     if ($pwshVersion -lt [Version]"7.0") {
         Write-Host "[WARNING] You are using PowerShell version $pwshVersion. `n          It is recommended to use PowerShell 7 or higher `n          for better compatibility." -ForegroundColor yellow
