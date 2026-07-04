@@ -24,6 +24,23 @@ function save-config {
     }
 }
 
+function Add-ConnectionToConfig {
+    param (
+        [Parameter(Mandatory = $true)]
+        [object]$Config,
+        [Parameter(Mandatory = $true)]
+        [object]$NewConnection
+    )
+    if ($null -eq $Config.Connections) {
+        $Config.Connections = [System.Collections.ArrayList]@()
+    }
+    if ($Config.Connections -isnot [System.Collections.ArrayList]) {
+        $Config.Connections = [System.Collections.ArrayList]$Config.Connections
+    }
+    $Config.Connections.Add($NewConnection) | Out-Null
+    return $Config
+}
+
 #The Test-Path checks if the config file exists
 if (Test-Path $configPath) {
     $config = Get-Content $configPath | ConvertFrom-Json
@@ -37,7 +54,8 @@ if (Test-Path $configPath) {
     "Menu-Settings": []
 }
 "@
-save-config -Path $configPath -Config ($jsonTemplate | ConvertFrom-Json)
+$config = $jsonTemplate | ConvertFrom-Json
+save-config -Path $configPath -Config $config
 }
 # End config file handling
 
@@ -95,7 +113,8 @@ function add-ssh {
             cHost = $cHost
             cPort = if ([string]::IsNullOrWhiteSpace($cPort)) { 22 } else { [int]$cPort }
         }
-        $config.Connections += $newConnection
+        
+        $config = Add-ConnectionToConfig -Config $config -NewConnection $newConnection
 
         save-config -Path $configPath -Config $config
         
