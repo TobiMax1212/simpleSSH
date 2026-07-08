@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ "main" ]
   schedule:
-    # Führt die Überprüfung jeden Freitag um 16:15 Uhr automatisch aus
     - cron: '15 16 * * 5'
 
 permissions:
@@ -17,23 +16,48 @@ permissions:
 jobs:
   build:
     name: PSScriptAnalyzer and Security Checks
-    # Steuert deinen Raspberry Pi 4 Docker-Runner an
     runs-on: [self-hosted, linux, arm64]
     
     steps:
       - name: Code auschecken
         uses: actions/checkout@v4
 
+      # NEU: Behebt den libpsl-native Bug im ARM64-Runner-Image
+      - name: Fix and Ensure PowerShell is installed (ARM64)
+        shell: bash
+        run: |
+          # Prüfen, ob das installierte pwsh kaputt ist (sucht nach liblibpsl)
+          if command -v pwsh >/dev/null 2>&1; then
+            echo "Prüfe vorhandenes pwsh..."
+            if pwsh -v 2>&1 | grep -q "DllNotFoundException"; then
+              echo "Defektes pwsh erkannt. Entferne es..."
+              sudo apt-get remove -y powershell || true
+            else
+              echo "pwsh ist vorhanden und funktioniert."
+              exit 0
+            fi
+          fi
+
+          echo "Installiere offizielles Microsoft PowerShell für ARM64..."
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl apt-transport-https gnupg
+          
+          # Microsoft GPG-Key hinzufügen
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/microsoft.gpg
+          
+          # Microsoft Repository für Ubuntu 22.04 (Basis des Runner-Images) hinzufügen
+          echo "deb [signed-by=/usr/share/keyrings/microsoft.gpg arch=arm64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
+          
+          sudo apt-get update
+          sudo apt-get install -y powershell
+          echo "Offizielles pwsh erfolgreich installiert: $(pwsh -v)"
+
       - name: Install PSScriptAnalyzer
         shell: pwsh
         run: |
-          # TLS 1.2 für den Download erzwingen
           [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-          
-          # PSGallery als vertrauenswürdig markieren, um interaktive Prompts zu verhindern
           Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
           
-          # Modul installieren, falls noch nicht vorhanden
           if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
               Write-Host "Installiere PSScriptAnalyzer..."
               Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
@@ -45,19 +69,16 @@ jobs:
         id: pssa
         shell: pwsh
         run: |
-          # Definiert sicherheitsrelevante Regeln für PowerShell
           $securityRules = @(
               'PSAvoidGlobalAliases',
               'PSAvoidUsingConvertToSecureStringWithPlainText'
           )
 
-          # Scannt das gesamte Repository rekursiv nach PowerShell-Skripten (.ps1, .psm1)
           $results = Invoke-ScriptAnalyzer -Path .\ -Recurse -IncludeRule $securityRules
           
           if ($results) {
               $results | ConvertTo-Json -Depth 10 -Compress | Out-File -FilePath pssa_results.json
               $results | Format-List
-              # Setzt die Output-Variable für den nächsten Step
               "has_errors=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
               Write-Host "No security issues found by PSScriptAnalyzer."
@@ -68,7 +89,6 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          # Wenn eine Fehlerdatei existiert, brechen wir die Pipeline mit einem Fehler ab
           if (Test-Path pssa_results.json) {
               Write-Error "PSScriptAnalyzer found security issues in your PowerShell scripts!"
               exit 1
