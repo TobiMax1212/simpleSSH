@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [ "main" ]
   schedule:
+    # Führt die Überprüfung jeden Freitag um 16:15 Uhr automatisch aus
     - cron: '15 16 * * 5'
 
 permissions:
@@ -15,52 +16,51 @@ permissions:
 
 jobs:
   build:
-    permissions:
-      contents: read
-      security-events: write
-      actions: read
     name: PSScriptAnalyzer and Security Checks
-    runs-on: ubuntu-latest
+    # WICHTIG: Hier steuern wir deinen Raspberry Pi Docker-Runner an
+    runs-on: [self-hosted, linux, arm64]
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Code auschecken
+        uses: actions/checkout@v4
 
       - name: Install PSScriptAnalyzer
         shell: pwsh
         run: |
-          Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+          # Installiert das Analyse-Modul lokal im Container, falls nicht vorhanden
+          if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
+              Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -Repository PSGallery
+          }
 
       - name: Run PSScriptAnalyzer with Security Rules
         id: pssa
         shell: pwsh
         run: |
-          # Sicherheitsrelevante Regeln
+          # Definiert sicherheitsrelevante Regeln für PowerShell
           $securityRules = @(
               'PSAvoidGlobalAliases',
               'PSAvoidUsingConvertToSecureStringWithPlainText'
           )
 
-          # Analyse durchführen
+          # Scannt das gesamte Repository rekursiv nach PowerShell-Skripten (.ps1, .psm1)
           $results = Invoke-ScriptAnalyzer -Path .\ -Recurse -IncludeRule $securityRules
+          
           if ($results) {
               $results | ConvertTo-Json -Depth 10 -Compress | Out-File -FilePath pssa_results.json
               $results | Format-List
+              # Setzt eine Variable für nachfolgende Steps
               "has_errors=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
               Write-Host "No security issues found by PSScriptAnalyzer."
               "has_errors=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
-      - name: Upload PSScriptAnalyzer Results to GitHub Security Tab
-        if: steps.pssa.outputs.has_errors == 'true'
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: pssa_results.json
-
       - name: Fail build if security issues were found
         if: always()
         shell: pwsh
         run: |
+          # Wenn eine Fehlerdatei existiert, brechen wir die Pipeline mit einem Fehler ab
           if (Test-Path pssa_results.json) {
-              Write-Error "PSScriptAnalyzer found security issues. Check the GitHub Security tab for details."
+              Write-Error "PSScriptAnalyzer found security issues in your PowerShell scripts!"
               exit 1
           }
