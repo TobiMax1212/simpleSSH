@@ -82,18 +82,24 @@ function add-ssh {
 # ====================================================================
 # [INFO] BEGINN: MAINTENANCE NEEDED: Add shortcut feature for SSH connections
 # ====================================================================    
-    #Write-Host "Would you like to add an menu shortcut for this connection? (y/n)" -ForegroundColor Yellow
-    #$addShortcut = Read-Host "Enter 'y' for yes or 'n' for no"
+    Write-Host "Would you like to add an menu shortcut for this connection? (y/n)" -ForegroundColor Yellow
+    $addShortcut = Read-Host "Enter 'y' for yes or 'n' for no"
 
     if ($addShortcut -eq 'y') {
         Write-Host "Choose a shortcut number (6-9) for this connection:" -ForegroundColor Yellow
         $shortcutNumber = Read-Host "Enter a number between 6 and 9"
         if ($shortcutNumber -match '^[6-9]$') {
-            $config."Menu-Settings" += [PSCustomObject]@{
-                Shortcut = $shortcutNumber
-                ConnectionName = $cName
+            $existing = $config."Menu-Settings" | Where-Object { $_.Shortcut -eq $shortcutNumber}
+
+            if ($existing) {
+                Write-Host "`n[Error] Shortcut '$shortcutNumber' is already used by '$($existing.ConnectionName)'." -ForegroundColor Red 
+            } else {
+                $config."Menu-Settings" += [PSCustomObject]@{
+                    Shortcut = $shortcutNumber
+                    ConnectionName = $cName
+                }
+                Write-Host "`n[OK] Shortcut '$shortcutNumber' assigned to connection '$cName'." -ForegroundColor Green
             }
-            Write-Host "`n[OK] Shortcut '$shortcutNumber' assigned to connection '$cName'." -ForegroundColor Green
         } else {
             Write-Host "`n[Error] Invalid shortcut number. Please enter a number between 6 and 9." -ForegroundColor Red
         }
@@ -181,7 +187,9 @@ function remove-ssh {
         Write-Host "`n[OK] Deleting connection $($selectedConnection.cName)..." -ForegroundColor Green
 
         $config.Connections = $config.Connections | Where-Object { $_.cName -ne $selectedConnection.cName }
-        
+        $config."Menu-Settings" = @($config."Menu-Settings" | Where-Object { $_.ConnectionName -ne $selectedConnection.cName })
+
+
         save-config -Path $configPath -Config $config
 
 
@@ -265,6 +273,10 @@ while($true) {
     Write-Host "Shortcuts: (Press the corresponding number to select an option)" -ForegroundColor Green
     Write-Host $line -ForegroundColor Cyan
     
+    foreach ($sc in $config."Menu-Settings") {
+        Write-Host "$($sc.Shortcut). Connect to $($sc.ConnectionName)" -ForegroundColor White
+    }
+
     if ($configSuccess -eq $true) {
         Write-Host "[INFO] Config loaded successfully!" -ForegroundColor Green
     } else {
@@ -277,7 +289,7 @@ while($true) {
     # 3. Mainloop -- Section ||
     # ==========================================
     
-    $userInput = Read-Host "Enter your choice (1-5)"
+    $userInput = Read-Host "Enter your choice (1-9)"
     
     switch ($userInput) {
         "1" {
@@ -312,7 +324,21 @@ while($true) {
             exit
         }
         default {
-            Write-Host "Invalid choice. Please select a valid option (1-6)." -ForegroundColor Red
+            if ($userInput -match '^[6-9]$') {
+                $sc = $config."Menu-Settings" | Where-Object { $_.Shortcut -eq $userInput }
+                if ($sc) {
+                    $conn = $config.Connections | Where-Object { $_.cName -eq $sc.ConnectionName }
+                    if ($conn) {
+                        ssh -p $($conn.cPort) "$($conn.cUname)@$($conn.cHost)"
+                    } else {
+                        Write-Host "`n[Error] Connection '$($sc.ConnectionName)' no longer exists." -ForegroundColor Red
+                    }
+                } else {
+                    Write-Host "`n[Error] No shortcut assigned to '$userInput'." -ForegroundColor Red
+                }
+            } else {
+                Write-Host "Invalid choice..." -ForegroundColor Red
+            }
         }
     }
 
