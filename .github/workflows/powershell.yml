@@ -17,7 +17,7 @@ permissions:
 jobs:
   build:
     name: PSScriptAnalyzer and Security Checks
-    # WICHTIG: Hier steuern wir deinen Raspberry Pi Docker-Runner an
+    # Steuert deinen Raspberry Pi 4 Docker-Runner an
     runs-on: [self-hosted, linux, arm64]
     
     steps:
@@ -27,9 +27,18 @@ jobs:
       - name: Install PSScriptAnalyzer
         shell: pwsh
         run: |
-          # Installiert das Analyse-Modul lokal im Container, falls nicht vorhanden
+          # TLS 1.2 für den Download erzwingen
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          
+          # PSGallery als vertrauenswürdig markieren, um interaktive Prompts zu verhindern
+          Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+          
+          # Modul installieren, falls noch nicht vorhanden
           if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
-              Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -Repository PSGallery
+              Write-Host "Installiere PSScriptAnalyzer..."
+              Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
+          } else {
+              Write-Host "PSScriptAnalyzer ist bereits vorhanden."
           }
 
       - name: Run PSScriptAnalyzer with Security Rules
@@ -48,7 +57,7 @@ jobs:
           if ($results) {
               $results | ConvertTo-Json -Depth 10 -Compress | Out-File -FilePath pssa_results.json
               $results | Format-List
-              # Setzt eine Variable für nachfolgende Steps
+              # Setzt die Output-Variable für den nächsten Step
               "has_errors=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           } else {
               Write-Host "No security issues found by PSScriptAnalyzer."
