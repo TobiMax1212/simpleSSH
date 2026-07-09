@@ -88,3 +88,4 @@ jobs:
               Write-Error "PSScriptAnalyzer found security issues in your PowerShell scripts!"
               exit 1
           }
+          // If no issues were found, the job will complete successfully.    
