@@ -22,23 +22,24 @@ jobs:
       - name: Code auschecken
         uses: actions/checkout@v4
 
-      # NEU: Direkter Download des Archivs, um glibc-Fehler zu vermeiden
+      # Installiert nun die von PSScriptAnalyzer geforderte Mindestversion 7.4.6
       - name: Fix and Ensure PowerShell is installed (ARM64)
         shell: bash
         run: |
-          echo "Bereinige defekte Paketquellen und alte Versionen..."
+          echo "Bereinige alte Versionen..."
           sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
           sudo apt-get remove -y powershell || true
           sudo rm -f /usr/bin/pwsh
+          sudo rm -rf /opt/microsoft/powershell/7
 
           echo "Installiere curl und tar (falls fehlend)..."
           sudo apt-get update
           sudo apt-get install -y curl tar
 
-          echo "Lade offizielles PowerShell-Archiv für ARM64 herunter..."
-          curl -L -o /tmp/powershell.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v7.4.3/powershell-7.4.3-linux-arm64.tar.gz
+          echo "Lade offizielles PowerShell v7.4.6 für ARM64 herunter..."
+          curl -L -o /tmp/powershell.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-arm64.tar.gz
 
-          echo "Entpacke und konfiguriere PowerShell..."
+          echo "Entpacke und konfiguriere PowerShell v7.4.6..."
           sudo mkdir -p /opt/microsoft/powershell/7
           sudo tar zxf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7
           sudo chmod +x /opt/microsoft/powershell/7/pwsh
