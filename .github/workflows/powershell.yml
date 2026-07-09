@@ -22,35 +22,29 @@ jobs:
       - name: Code auschecken
         uses: actions/checkout@v4
 
-      # NEU: Behebt den libpsl-native Bug im ARM64-Runner-Image
+      # NEU: Direkter Download des Archivs, um glibc-Fehler zu vermeiden
       - name: Fix and Ensure PowerShell is installed (ARM64)
         shell: bash
         run: |
-          # Prüfen, ob das installierte pwsh kaputt ist (sucht nach liblibpsl)
-          if command -v pwsh >/dev/null 2>&1; then
-            echo "Prüfe vorhandenes pwsh..."
-            if pwsh -v 2>&1 | grep -q "DllNotFoundException"; then
-              echo "Defektes pwsh erkannt. Entferne es..."
-              sudo apt-get remove -y powershell || true
-            else
-              echo "pwsh ist vorhanden und funktioniert."
-              exit 0
-            fi
-          fi
+          echo "Bereinige defekte Paketquellen und alte Versionen..."
+          sudo rm -f /etc/apt/sources.list.d/microsoft-prod.list
+          sudo apt-get remove -y powershell || true
+          sudo rm -f /usr/bin/pwsh
 
-          echo "Installiere offizielles Microsoft PowerShell für ARM64..."
+          echo "Installiere curl und tar (falls fehlend)..."
           sudo apt-get update
-          sudo apt-get install -y ca-certificates curl apt-transport-https gnupg
-          
-          # Microsoft GPG-Key hinzufügen
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/microsoft.gpg
-          
-          # Microsoft Repository für Ubuntu 22.04 (Basis des Runner-Images) hinzufügen
-          echo "deb [signed-by=/usr/share/keyrings/microsoft.gpg arch=arm64] https://packages.microsoft.com/ubuntu/22.04/prod jammy main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
-          
-          sudo apt-get update
-          sudo apt-get install -y powershell
-          echo "Offizielles pwsh erfolgreich installiert: $(pwsh -v)"
+          sudo apt-get install -y curl tar
+
+          echo "Lade offizielles PowerShell-Archiv für ARM64 herunter..."
+          curl -L -o /tmp/powershell.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v7.4.3/powershell-7.4.3-linux-arm64.tar.gz
+
+          echo "Entpacke und konfiguriere PowerShell..."
+          sudo mkdir -p /opt/microsoft/powershell/7
+          sudo tar zxf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7
+          sudo chmod +x /opt/microsoft/powershell/7/pwsh
+          sudo ln -sf /opt/microsoft/powershell/7/pwsh /usr/bin/pwsh
+
+          echo "Erfolgreich installiert: $(pwsh -v)"
 
       - name: Install PSScriptAnalyzer
         shell: pwsh
