@@ -1,104 +1,88 @@
-# simpleSSH Manager
+# simpleSSH
 
-A lightweight, terminal-based SSH connection manager written entirely in PowerShell. 
+A lightweight, terminal-based SSH connection manager written in PowerShell. Store, list, connect to, and remove SSH connections through an interactive CLI menu, with profiles persisted to a local JSON config file.
 
-**simpleSSH** provides a clean, interactive Command Line Interface (CLI) to store, manage, and quickly connect to your frequently used SSH servers. It's the perfect companion for managing homelab environments (like Proxmox nodes, Raspberry Pis, or Docker hosts) without needing heavy GUI applications.
+## Description
 
----
+simpleSSH provides a menu-driven interface for managing frequently used SSH connections, aimed at homelab environments such as Proxmox nodes, Raspberry Pis, or Docker hosts. Connection profiles (name, username, host, port) are stored in `data/config.json`, which is created automatically on first run.
 
-## Features
+## Prerequisites
 
-* **Interactive CLI Menu:** Clean, color-coded terminal interface.
-* **CRUD Functionality:** Easily add, list, connect to, or remove SSH connections.
-* **Dynamic JSON Storage:** All connection profiles are saved to a local `config.json` file.
-* **Custom Port Support:** Define specific ports for each connection to handle non-standard setups.
-* **Self-Healing Config:** Automatically generates the required directory structure and configuration files on the first run.
+- PowerShell 5.1 or newer (PowerShell Core 7+ recommended)
+- OpenSSH client installed and available on `PATH`
 
----
+## Installation
 
-## Installation & Usage
+```powershell
+git clone https://github.com/TobiMax1212/simpleSSH.git
+cd simpleSSH
+```
 
-1. **Clone the repository:**
-   ```powershell
-   git clone https://github.com/TobiMax1212/simpleSSH.git
-   cd simpleSSH
-   ```
+Ensure your PowerShell execution policy allows local scripts to run:
 
-2. **Run the script:**
-   Execute the script in your PowerShell console.
-   ```powershell
-   .\simpleSSH.ps1
-   ```
-   (Note: Ensure your PowerShell execution policy allows the running of local scripts.)
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
 
-### Prerequisites
+## Usage
 
-* PowerShell 5.1 or newer (PowerShell Core 7+ recommended).
-* OpenSSH Client installed on your system (usually pre-installed on Windows 10/11 and standard Linux distributions).
+Run the script from the project root:
 
----
+```powershell
+.\simpleSSH.ps1
+```
 
-## Usage Example
+On first run, the script creates `data/config.json` with an empty connection list.
 
-When you run `simpleSSH.ps1`, the script will display a menu with several options:
+### Menu options
 
 ```
-======================================================================
-                           Welcome to the simpleSSH manager!            
-======================================================================
-                              version: 7.2.5                            
-                             Author: TobiMax1212                        
-======================================================================
-
- [i] Info:    This script will help you manage 
-              your SSH connections easily.
-
- [?] Time:    2023-10-15 14:30:00
-
-======================================================================
-Please select an option:
 1. Add a new SSH connection
 2. List all SSH connections
 3. Connect to an SSH server
 4. Remove an SSH connection
 5. Exit
-You can exit also by pressing 'strg + c' or 'ctrl + c'.
-======================================================================
-Shortcuts: (Press the corresponding number to select an option)
-======================================================================
-
-[INFO] Config loaded successfully!
 ```
 
-### Menu Options
+- **Add**: prompts for name, username, host, and optional port (default 22). Optionally assigns a menu shortcut (6-9) for quick access.
+- **List**: displays all stored connections.
+- **Connect**: select a stored connection to open an SSH session.
+- **Remove**: select a stored connection to delete it from the config.
+- **Exit**: exits the script. `Ctrl+C` also exits at any time.
 
-1. **Add a new SSH connection**
-   - Enter the name, username, host, and optionally a port for the SSH connection.
-   
-2. **List all SSH connections**
-   - Displays all stored SSH connections.
+## Configuration
 
-3. **Connect to an SSH server**
-   - Select a connection from the list to connect via SSH.
-   
-4. **Remove an SSH connection**
-   - Remove a selected SSH connection from the configuration.
+Connections are stored in `data/config.json`:
 
-5. **Exit**
-   - Exit the script after a short delay.
+```json
+{
+  "Connections": [],
+  "Menu-Settings": []
+}
+```
 
----
+This file is excluded from version control via `.gitignore`. Use `data/example_config.json` as a reference for the expected structure.
 
-## Roadmap / To-Do
+## Project structure
 
-* [ ] Shortcut feature for fast SSH connection within the menu
-* [ ] Output all available devices within the network
-* [ ] Copy / Export the JSON config within the menu
-* [ ] Enhance and refine the GitHub Workflow within the repository
-* [ ] Fix backend feature, like the save function for SSH connections
+```
+simpleSSH/
+├── simpleSSH.ps1          # Main script
+├── data/
+│   ├── config.json        # Local connection profiles (gitignored)
+│   └── example_config.json
+├── .github/                # Workflow definitions
+└── .vscode/                 # Editor settings (gitignored)
+```
 
----
+## Roadmap
+
+- Shortcut feature for fast SSH connection within the menu
+- Output all available devices within the network
+- Copy / export the JSON config from within the menu
+- Refine the GitHub Actions workflow
+- Fix backend save function for SSH connections
 
 ## Author
 
-Created by TobiMax1212
+TobiMax1212
