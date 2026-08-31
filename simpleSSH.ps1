@@ -1,3 +1,4 @@
+try {
 # ===========================================
 # 1. Global variable // Config init
 # ===========================================
@@ -321,7 +322,8 @@ while($true) {
                 Write-Host "Exiting in $i seconds..." -ForegroundColor DarkGray
                 Start-Sleep -Seconds 1
             }
-            exit
+            Stop-Process -Id $PID
+            
         }
         default {
             if ($userInput -match '^[6-9]$') {
@@ -344,6 +346,13 @@ while($true) {
 
     Read-Host "`nPress Enter to return to the main menu..." | Out-Null
     Clear-Host
+
+}
+    
+}
+finally {
+    Write-Host "`n[INFO] Exiting the simpleSSH manager. Goodbye!" -ForegroundColor Red
+    Stop-Process -Id $PID
 
 }
 
